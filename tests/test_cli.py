@@ -9,6 +9,7 @@ from typer.testing import CliRunner
 import main
 from config import Config
 from src.scraper import Series, Book
+from src.scraper.api_client import KaganeAPIClient
 
 
 class DownloadTests(unittest.TestCase):
@@ -66,6 +67,18 @@ class DownloadTests(unittest.TestCase):
 
     def test_complete_chapter_is_converted(self):
         self.assertEqual(self.acquire(2), (True, True))
+
+    def test_security_challenge_is_not_retried(self):
+        client = KaganeAPIClient()
+        error = RuntimeError('HTTP 403')
+        error.response = SimpleNamespace(status_code=403)
+        try:
+            with patch.object(client.session, 'get', side_effect=error) as request:
+                with self.assertRaises(RuntimeError):
+                    client.get_series('test')
+                request.assert_called_once()
+        finally:
+            client.close()
 
 
 if __name__ == '__main__':
